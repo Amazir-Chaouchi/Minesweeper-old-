@@ -11,6 +11,7 @@ int AskForFieldSize(){
     int dimension = 0;
     printf("Please enter field dimension :");
     scanf("%d", &dimension);
+
     return dimension;
 }
 
