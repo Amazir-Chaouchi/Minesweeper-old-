@@ -19,9 +19,6 @@
 typedef struct s_cell {
     int value;
     int status;
-    bool firstMove;
-    int row;
-    int col;
 } t_cell;
 
 typedef struct s_point {
@@ -30,64 +27,72 @@ typedef struct s_point {
 }t_point;
     
 /* GLOBAL VARIABLES DECLARATIONS */
+bool gameOver = false;
 int row, col, minePercent;
-int currentRow, currentCol;
 t_cell** matrix;
 
-int compteur = 0;
-
 /* FUNCTION PROTOTYPES */
-t_point AskCoordinates() {
-    /* Demander coordonnees a user */
-    t_point coordinates;
+t_point GetCoordinates() {
     char buff[256];
     int argCounter = 0;
-    bool isFirstMove = true;
+    t_point coordinates;
+    
     do {
-        printf("Enter coordinates of the cell to unveil :");
+        printf("Enter coordinates :");
         fgets(buff, sizeof(buff), stdin);
         argCounter = sscanf(buff, "%d %d", &coordinates.x, &coordinates.y);
     } while (argCounter < 2 || coordinates.x < 0 || coordinates.x >= row || coordinates.y < 0 || coordinates.y >= col);
     
     printf("Selected cell : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
     
-    if(isFirstMove) {
-        matrix[coordinates.x][coordinates.y].firstMove = true;
-        isFirstMove = false;
-    }
-    
     return coordinates;
 }
-void MakeVisibleAround(t_point cell) {
-    /* Pour chaque case autour... */
-    for(int k = -1; k < 2; k++) {
-        for(int l = -1; l < 2; l++) {
-            /* ...si cette case existe... */
-            if(cell.x+k >= 0 && cell.x+k < row && cell.y+l >= 0 && cell.y+l < col) {
+void EvaluateMove(t_point cell) {
+    if(matrix[cell.x][cell.y].status == FLAGGED) {
+        printf("This cell has already been flagged. Please select an other one.\n");
+    }
+    else {
+        switch(matrix[cell.x][cell.y].value) {
+            case MINE:
+                gameOver = true;
+                printf("You fell on a mine. GAMO OVER.\n");
+                break;
+            case 0:                
+                for(int k = -1; k < 2; k++) {
+                    for(int l = -1; l < 2; l++) {
+                /* ...si cette case existe... */
+                        if(cell.x+k >= 0 && cell.x+k < row && cell.y+l >= 0 && cell.y+l < col) {
                 /* ...et si ce n'est ni une mine, ni une case flaggged... */
-                if(matrix[cell.x+k][cell.y+l].value != MINE && matrix[cell.x+k][cell.y+l].status != FLAGGED) {
-                    if(matrix[cell.x+k][cell.y+l].value == 0 && matrix[cell.x+k][cell.y+l].status != VISIBLE) {
-                        matrix[cell.x+k][cell.y+l].status = VISIBLE;
-                        cell.x = cell.x+k;
-                        cell.y = cell.y+l;
-                        MakeVisibleAround(cell);
+                            if(matrix[cell.x+k][cell.y+l].value != MINE && matrix[cell.x+k][cell.y+l].status != FLAGGED && matrix[cell.x+k][cell.y+l].status != VISIBLE) {
+                                matrix[cell.x+k][cell.y+l].status = VISIBLE;
+                                if(matrix[cell.x+k][cell.y+l].value == 0) {
+                                    cell.x = cell.x+k;
+                                    cell.y = cell.y+l;
+                                    EvaluateMove(cell);
+                                }
+                            }
+                        }
                     }
                 }
-            }
+                break;
+            default:
+                matrix[cell.x][cell.y].status = VISIBLE;
+                break;
         }
     }
 }
 void InitField() {
     /* Demande taille de matrice + nb de mines (en %) */
+    bool isFirstTry = true;
     char buff[256];
     int argCounter = 0;
-    bool isFirstTry = true;
+    
     do {
         if(!isFirstTry) {
             printf("Wrong format or size too high.\n");
         }
         printf("Please enter field dimensions (row col minePercent).\n"
-               "Note : row max = %d, col max = %d, minePercent must be included between %d and %d :\t", MAX_ROW, MAX_COL, MIN_PERCENT, MAX_PERCENT);
+               "Note : row max = %d, col max = %d, minePercent must be included between %d and %d : ", MAX_ROW, MAX_COL, MIN_PERCENT, MAX_PERCENT);
         fgets(buff, sizeof(buff), stdin);
         argCounter = sscanf(buff, "%d %d %d", &row, &col, &minePercent);
         isFirstTry = false;
@@ -104,26 +109,41 @@ void InitField() {
         for(int j = 0; j < col; j++) {
             matrix[i][j].value = 0;
             matrix[i][j].status = HIDDEN;
-            matrix[i][j].firstMove = false;
-            matrix[i][j].row = i;
-            matrix[i][j].col = j;
         }
     }
     
-    t_point coord = AskCoordinates();
+    t_point coord = GetCoordinates();
     matrix[coord.x][coord.y].status = VISIBLE;
     
     /* Calcul du nombre de mines et placement */
+    int randRow, randCol;
     int nbMines = (row * col * minePercent) / 100;
+    
     srand(time(NULL));
     /* Pour chaque mine, définir coordonnées aléatoires dans matrix */
-    int randRow, randCol;
-    for(int i = 0; i < nbMines; i++) {
+    bool isFirstCellAround;
+    int nbSetMines = 0;
+    printf("nbSetMines: %d\n",nbSetMines);
+    while (nbSetMines < nbMines) {
         randRow = rand() % row;
         randCol = rand() % col;
-        matrix[randRow][randCol].value != MINE && matrix[randRow][randCol].firstMove == false
-            ? matrix[randRow][randCol].value = MINE
-            : i--;
+        
+        isFirstCellAround = false;
+        
+        for(int k = -1; k < 2; k++) {
+            for(int l = -1; l < 2; l++) {
+                if(randRow+k >= 0 && randRow+k < row && randCol+l >= 0 && randCol+l < col) {
+                    if(matrix[randRow+k][randCol+l].status == VISIBLE) {
+                        isFirstCellAround = true;
+                    }
+                }
+            }
+        }
+        
+        if (matrix[randRow][randCol].value != MINE && matrix[randRow][randCol].status != VISIBLE && isFirstCellAround == 0) {
+            matrix[randRow][randCol].value = MINE;
+            nbSetMines++;
+        }
     }
     
     /* Calculer les indices */
@@ -148,7 +168,7 @@ void InitField() {
         }    
     }
     
-    MakeVisibleAround(coord);
+    EvaluateMove(coord);
 }
 void PrintField() {
     /* Ligne d'entête : numéros de colonnes + ligne horizontale de séparation. */
@@ -196,29 +216,14 @@ void FreeMatrix() {
 }
 
 /* MAIN PROGRAM */
-int main() {
-    bool gameOver = false;
-    t_point coord;
-    
+int main() {    
     /* Initialisation du champ de mines */
     InitField();
     PrintField();
     
     /* Boucle de jeu (tant que !gameOver) */    
     while (!gameOver) {
-        coord = AskCoordinates();
-        MakeVisibleAround(coord);
-        
-        if(matrix[coord.x][coord.y].value == MINE) {
-            gameOver = true;
-            printf("And you failed...GAME OVER.\n");
-        }
-        else if(matrix[coord.x][coord.y].status == FLAGGED) {
-            printf("This cell has already been flagged. Please, select an other cell.\n");
-        }
-        else {
-            MakeVisibleAround(coord);
-        }
+        EvaluateMove(GetCoordinates());
         PrintField();
     }
     
