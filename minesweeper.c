@@ -34,6 +34,7 @@ int nbMines;
 int nbVisible = 0;
 int nbFlagged = 0;
 int argCounter = 0;
+int nbDiscoveredMines = 0;
 
 /* FUNCTION PROTOTYPES */
 t_point GetCoordinates() {
@@ -60,6 +61,9 @@ t_point GetCoordinates() {
                     matrix[coordinates.x][coordinates.y].status = FLAGGED;
                     printf("Selected cell (Flag) : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
                     nbFlagged++;
+                    if(matrix[coordinates.x][coordinates.y].value == MINE) {
+                        nbDiscoveredMines++;
+                    }
                     break;
                 case 'r' :
                     matrix[coordinates.x][coordinates.y].status = HIDDEN;
@@ -228,6 +232,7 @@ void PrintField() {
                 }
                 else {
                     printf("%3d",matrix[i][j].value);
+                
                 }
             }
             printf("\n");
@@ -245,7 +250,12 @@ void PrintField() {
                     printf("  M");
                 }
                 else {
-                    printf("%3d",matrix[i][j].value);
+                    if(matrix[i][j].value == 0) {
+                        printf("   ");
+                    }
+                    else {
+                        printf("%3d",matrix[i][j].value);
+                    }
                 }
             }
             printf("\n");
@@ -277,9 +287,12 @@ int main() {
     
     /* Boucle de jeu (tant que !gameOver) */    
     while (!gameOver) {
+        printf("\n%2d mine(s) left to find\n%2d Visible\n%2d Flagged\n%2d Mines\n%2d Total cells\n", nbMines - nbDiscoveredMines, nbVisible, nbFlagged, nbMines, row * col);
+        
         EvaluateMove(GetCoordinates());
         PrintField();
-        if(nbFlagged == nbMines && nbVisible == row * col - (nbFlagged + nbMines)) {
+        
+        if(nbFlagged == nbMines && nbDiscoveredMines == nbMines) {
             printf("\tYOU WIN !!! CONGRATULATIONS !\n");
             gameOver = true;
         }
