@@ -37,6 +37,19 @@ int argCounter = 0;
 int nbDiscoveredMines = 0;
 
 /* FUNCTION PROTOTYPES */
+int GetDifficultyLevel() {
+    char buff[256];
+    int argCounterDiff = 0;
+    int level;
+    
+    do {
+        printf("Choose difficulty level : 1 = Easy\t2 = Medium\t3 = Hard\t4 = Custom : ");
+        fgets(buff, sizeof(buff), stdin);
+        argCounterDiff = sscanf(buff, "%d", &level);
+    } while (argCounterDiff != 1 || level < 1 || level > 4);
+    
+    return level;
+}
 t_point GetCoordinates() {
     char buff[256];
     t_point coordinates;
@@ -113,22 +126,44 @@ void EvaluateMove(t_point cell) {
         }
     }
 }
-void InitField() {
-    /* Demande taille de matrice + nb de mines (en %) */
+void InitField(int difficulty) {
     bool isFirstTry = true;
     char buff[256];
     int argCounterSize = 0;
     
-    do {
-        if(!isFirstTry) {
-            printf("Wrong format or size too high.\n");
-        }
-        printf("Please enter field dimensions (row col minePercent).\n"
-               "Note : row max = %d, col max = %d, minePercent must be included between %d and %d : ", MAX_ROW, MAX_COL, MIN_PERCENT, MAX_PERCENT);
-        fgets(buff, sizeof(buff), stdin);
-        argCounterSize = sscanf(buff, "%d %d %d", &row, &col, &minePercent);
-        isFirstTry = false;
-    } while(argCounterSize < 3 || row > MAX_ROW || col > MAX_COL || minePercent < MIN_PERCENT || minePercent > MAX_PERCENT);
+    switch(difficulty) {
+        case 1:
+            row = 8;
+            col = 10;
+            minePercent = 13;
+            break;
+        case 2:
+            row = 14;
+            col = 18;
+            minePercent = 16;
+            break;
+        case 3:
+            row = 20;
+            col = 24;
+            minePercent = 21;
+            break;
+        case 4:
+            /* Demande taille de matrice + nb de mines (en %) */    
+            do {
+                if(!isFirstTry) {
+                    printf("Wrong format or size too high.\n");
+                }
+                printf("Please enter field dimensions (row col minePercent).\n"
+                    "Note : row max = %d, col max = %d, minePercent must be included between %d and %d : ", MAX_ROW, MAX_COL, MIN_PERCENT, MAX_PERCENT);
+                fgets(buff, sizeof(buff), stdin);
+                argCounterSize = sscanf(buff, "%d %d %d", &row, &col, &minePercent);
+                isFirstTry = false;
+            } while(argCounterSize < 3 || row > MAX_ROW || col > MAX_COL || minePercent < MIN_PERCENT || minePercent > MAX_PERCENT);
+            break;
+        default:
+            printf("An error occured in function InitField (switch(difficulty) --default).\n");
+            break;
+    }
     
     /* Allocation memoire. */
     matrix = (t_cell**)malloc(sizeof(t_cell*) * row);
@@ -206,7 +241,7 @@ void PrintField() {
     /* Ligne d'entête : numéros de colonnes + ligne horizontale de séparation. */
     printf("   ");
     for(int i = 0; i < col; i++) {
-        printf("%3d", i);
+        printf("%2d ", i);
     }
     printf("\n");
     
@@ -221,21 +256,25 @@ void PrintField() {
             for(int j = 0; j < col; j++) {
                 if(matrix[i][j].status == HIDDEN) {
                     if(matrix[i][j].value == MINE) {
-                        printf("  M");
+                        printf(" M ");
                     }
                     else {
-                        printf("  .");
+                        printf(" . ");
                     }
                 }
                 else if(matrix[i][j].status == FLAGGED) {
-                    printf("  M");
+                    printf(" M ");
                 }
                 else {
-                    printf("%3d",matrix[i][j].value);
+                    printf("%2d ",matrix[i][j].value);
                 
                 }
             }
-            printf("\n");
+            printf("|\n");
+        }
+        printf("   ");
+        for(int i = 0; i < col; i++) {       
+            printf("−−−");
         }
     }
     /* Hidden values */
@@ -244,21 +283,25 @@ void PrintField() {
             printf("%2d|", i);
             for(int j = 0; j < col; j++) {
                 if(matrix[i][j].status == HIDDEN) {
-                    printf("  .");
+                    printf(" . ");
                 }
                 else if(matrix[i][j].status == FLAGGED) {
-                    printf("  M");
+                    printf(" M ");
                 }
                 else {
                     if(matrix[i][j].value == 0) {
                         printf("   ");
                     }
                     else {
-                        printf("%3d",matrix[i][j].value);
+                        printf("%2d ",matrix[i][j].value);
                     }
                 }
             }
-            printf("\n");
+            printf("|\n");
+        }
+        printf("   ");
+        for(int i = 0; i < col; i++) {       
+            printf("−−−");
         }
     }
     /* Real values for debugging 
@@ -280,20 +323,20 @@ void FreeMatrix() {
 }
 
 /* MAIN PROGRAM */
-int main() {    
+int main() {
     /* Initialisation du champ de mines */
-    InitField();
+    InitField(GetDifficultyLevel());
     PrintField();
     
     /* Boucle de jeu (tant que !gameOver) */    
     while (!gameOver) {
-        printf("\n%2d mine(s) left to find\n%2d Visible\n%2d Flagged\n%2d Mines\n%2d Total cells\n", nbMines - nbDiscoveredMines, nbVisible, nbFlagged, nbMines, row * col);
+        printf("\n%2d mine(s) left to find\n%2d Visible\n%2d Flagged\n%2d Mines\n%2d Total cells\n\n", nbMines - nbDiscoveredMines, nbVisible, nbFlagged, nbMines, row * col);
         
         EvaluateMove(GetCoordinates());
         PrintField();
         
         if(nbFlagged == nbMines && nbDiscoveredMines == nbMines) {
-            printf("\tYOU WIN !!! CONGRATULATIONS !\n");
+            printf("\nYOU WIN !!! CONGRATULATIONS !\n");
             gameOver = true;
         }
     }
