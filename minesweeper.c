@@ -266,8 +266,12 @@ void PrintField() {
                     printf(" M ");
                 }
                 else {
-                    printf("%2d ",matrix[i][j].value);
-                
+                    if(matrix[i][j].value == 0) {
+                        printf("   ");
+                    }
+                    else {
+                        printf("%2d ",matrix[i][j].value);
+                    }
                 }
             }
             printf("|\n");
@@ -276,6 +280,7 @@ void PrintField() {
         for(int i = 0; i < col; i++) {       
             printf("−−−");
         }
+        printf("\n");
     }
     /* Hidden values */
     else {
@@ -330,7 +335,7 @@ int main() {
     
     /* Boucle de jeu (tant que !gameOver) */    
     while (!gameOver) {
-        printf("\n%2d mine(s) left to find\n%2d Visible\n%2d Flagged\n%2d Mines\n%2d Total cells\n\n", nbMines - nbDiscoveredMines, nbVisible, nbFlagged, nbMines, row * col);
+        printf("\n%2d Flagged\n%2d Mines\n\n", nbFlagged, nbMines);
         
         EvaluateMove(GetCoordinates());
         PrintField();
