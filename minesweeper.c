@@ -30,32 +30,58 @@ typedef struct s_point {
 bool gameOver = false;
 int row, col, minePercent;
 t_cell** matrix;
+int nbMines;
+int nbVisible = 0;
+int nbFlagged = 0;
+int argCounter = 0;
 
 /* FUNCTION PROTOTYPES */
 t_point GetCoordinates() {
     char buff[256];
-    int argCounter = 0;
     t_point coordinates;
+    char flag;
     
     do {
         printf("Enter coordinates :");
         fgets(buff, sizeof(buff), stdin);
-        argCounter = sscanf(buff, "%d %d", &coordinates.x, &coordinates.y);
-    } while (argCounter < 2 || coordinates.x < 0 || coordinates.x >= row || coordinates.y < 0 || coordinates.y >= col);
+        argCounter = sscanf(buff, "%d %d %c", &coordinates.x, &coordinates.y, &flag);
+    } while ((argCounter < 2 || argCounter > 3) || coordinates.x < 0 || coordinates.x >= row || coordinates.y < 0 || coordinates.y >= col);
     
-    printf("Selected cell : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
-    
+    if(argCounter == 2) {
+        printf("Selected cell : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
+    }
+    else if(argCounter == 3) {
+        if(matrix[coordinates.x][coordinates.y].status == VISIBLE) {
+            printf("You can't flag or remove a flag on a cell which has already been discovered.\n");
+        }
+        else {
+            switch(flag) {
+                case 'f':
+                    matrix[coordinates.x][coordinates.y].status = FLAGGED;
+                    printf("Selected cell (Flag) : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
+                    nbFlagged++;
+                    break;
+                case 'r' :
+                    matrix[coordinates.x][coordinates.y].status = HIDDEN;
+                    printf("Selected cell (Unflag): (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
+                    nbFlagged--;
+                    break;
+                default:
+                    if (matrix[coordinates.x][coordinates.y].status == FLAGGED){
+                        printf("Wrong format or cell already flagged.\nAdd f to flag cell or r to remove the flag.\n");
+                    }
+            }
+        }
+    }
+
     return coordinates;
 }
 void EvaluateMove(t_point cell) {
-    if(matrix[cell.x][cell.y].status == FLAGGED) {
-        printf("This cell has already been flagged. Please select an other one.\n");
-    }
-    else {
+    if(matrix[cell.x][cell.y].status != FLAGGED && argCounter != 3) {
         switch(matrix[cell.x][cell.y].value) {
             case MINE:
                 gameOver = true;
-                printf("You fell on a mine. GAMO OVER.\n");
+                printf("You fell on a mine. GAME OVER.\n");
                 break;
             case 0:                
                 for(int k = -1; k < 2; k++) {
@@ -65,6 +91,7 @@ void EvaluateMove(t_point cell) {
                 /* ...et si ce n'est ni une mine, ni une case flaggged... */
                             if(matrix[cell.x+k][cell.y+l].value != MINE && matrix[cell.x+k][cell.y+l].status != FLAGGED && matrix[cell.x+k][cell.y+l].status != VISIBLE) {
                                 matrix[cell.x+k][cell.y+l].status = VISIBLE;
+                                nbVisible++;
                                 if(matrix[cell.x+k][cell.y+l].value == 0) {
                                     cell.x = cell.x+k;
                                     cell.y = cell.y+l;
@@ -77,6 +104,7 @@ void EvaluateMove(t_point cell) {
                 break;
             default:
                 matrix[cell.x][cell.y].status = VISIBLE;
+                nbVisible++;
                 break;
         }
     }
@@ -85,7 +113,7 @@ void InitField() {
     /* Demande taille de matrice + nb de mines (en %) */
     bool isFirstTry = true;
     char buff[256];
-    int argCounter = 0;
+    int argCounterSize = 0;
     
     do {
         if(!isFirstTry) {
@@ -94,9 +122,9 @@ void InitField() {
         printf("Please enter field dimensions (row col minePercent).\n"
                "Note : row max = %d, col max = %d, minePercent must be included between %d and %d : ", MAX_ROW, MAX_COL, MIN_PERCENT, MAX_PERCENT);
         fgets(buff, sizeof(buff), stdin);
-        argCounter = sscanf(buff, "%d %d %d", &row, &col, &minePercent);
+        argCounterSize = sscanf(buff, "%d %d %d", &row, &col, &minePercent);
         isFirstTry = false;
-    } while(argCounter < 3 || row > MAX_ROW || col > MAX_COL || minePercent < MIN_PERCENT || minePercent > MAX_PERCENT);
+    } while(argCounterSize < 3 || row > MAX_ROW || col > MAX_COL || minePercent < MIN_PERCENT || minePercent > MAX_PERCENT);
     
     /* Allocation memoire. */
     matrix = (t_cell**)malloc(sizeof(t_cell*) * row);
@@ -114,16 +142,16 @@ void InitField() {
     
     t_point coord = GetCoordinates();
     matrix[coord.x][coord.y].status = VISIBLE;
+    nbVisible++;
     
     /* Calcul du nombre de mines et placement */
     int randRow, randCol;
-    int nbMines = (row * col * minePercent) / 100;
+    nbMines = (row * col * minePercent) / 100;
     
     srand(time(NULL));
     /* Pour chaque mine, définir coordonnées aléatoires dans matrix */
     bool isFirstCellAround;
     int nbSetMines = 0;
-    printf("nbSetMines: %d\n",nbSetMines);
     while (nbSetMines < nbMines) {
         randRow = rand() % row;
         randCol = rand() % col;
@@ -183,19 +211,45 @@ void PrintField() {
         printf("−−−");
     }
     printf("\b\n");
-    
-    /* Hidden values */
-    for(int i = 0; i < row; i++) {
-        printf("%2d|", i);
-        for(int j = 0; j < col; j++) {
-            if(matrix[i][j].status == HIDDEN) {
-                printf("  .");
+    if (gameOver) {
+        for(int i = 0; i < row; i++) {
+            printf("%2d|", i);
+            for(int j = 0; j < col; j++) {
+                if(matrix[i][j].status == HIDDEN) {
+                    if(matrix[i][j].value == MINE) {
+                        printf("  M");
+                    }
+                    else {
+                        printf("  .");
+                    }
+                }
+                else if(matrix[i][j].status == FLAGGED) {
+                    printf("  M");
+                }
+                else {
+                    printf("%3d",matrix[i][j].value);
+                }
             }
-            else{
-                printf("%3d",matrix[i][j].value);
-            }
+            printf("\n");
         }
-    printf("\n");
+    }
+    /* Hidden values */
+    else {
+        for(int i = 0; i < row; i++) {
+            printf("%2d|", i);
+            for(int j = 0; j < col; j++) {
+                if(matrix[i][j].status == HIDDEN) {
+                    printf("  .");
+                }
+                else if(matrix[i][j].status == FLAGGED) {
+                    printf("  M");
+                }
+                else {
+                    printf("%3d",matrix[i][j].value);
+                }
+            }
+            printf("\n");
+        }
     }
     /* Real values for debugging 
     for(int i = 0; i < row; i++) {
@@ -225,6 +279,10 @@ int main() {
     while (!gameOver) {
         EvaluateMove(GetCoordinates());
         PrintField();
+        if(nbFlagged == nbMines && nbVisible == row * col - (nbFlagged + nbMines)) {
+            printf("\tYOU WIN !!! CONGRATULATIONS !\n");
+            gameOver = true;
+        }
     }
     
     FreeMatrix();
