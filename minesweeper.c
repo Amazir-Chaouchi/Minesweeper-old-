@@ -20,7 +20,6 @@ typedef struct s_cell {
     int value;
     int status;
 } t_cell;
-
 typedef struct s_point {
     int x;
     int y;
@@ -31,10 +30,43 @@ bool gameOver = false;
 int row, col, minePercent;
 t_cell** matrix;
 int nbMines;
-int nbVisible = 0;
 int nbFlagged = 0;
 int argCounter = 0;
 int nbDiscoveredMines = 0;
+
+/* FUNCTION DECLARATIONS */
+int GetDifficultyLevel();
+t_point GetCoordinates();
+void EvaluateMove(t_point cell);
+void InitField(int difficulty);
+void PrintField();
+void FreeMatrix();
+
+/* MAIN PROGRAM */
+int main() {
+    /* Initialisation du champ de mines */
+    InitField(GetDifficultyLevel());
+    PrintField();
+    
+    /* Boucle de jeu (tant que !gameOver) */    
+    while (!gameOver) {
+        printf("\n%2d Flagged\n%2d Mines\n\n", nbFlagged, nbMines);
+        
+        EvaluateMove(GetCoordinates());
+        PrintField();
+        
+        if(nbFlagged == nbMines && nbDiscoveredMines == nbMines) {
+            printf("\nYOU WIN !!! CONGRATULATIONS !\n");
+            gameOver = true;
+            PrintField();
+        }
+    }
+    
+    FreeMatrix();
+    
+    
+    return 0;
+}
 
 /* FUNCTION PROTOTYPES */
 int GetDifficultyLevel() {
@@ -71,6 +103,7 @@ t_point GetCoordinates() {
         else {
             switch(flag) {
                 case 'f':
+                case 'F':
                     matrix[coordinates.x][coordinates.y].status = FLAGGED;
                     printf("Selected cell (Flag) : (%d ; %d)\nActualizing field...\n", coordinates.x, coordinates.y);
                     nbFlagged++;
@@ -108,7 +141,6 @@ void EvaluateMove(t_point cell) {
                 /* ...et si ce n'est ni une mine, ni une case flaggged... */
                             if(matrix[cell.x+k][cell.y+l].value != MINE && matrix[cell.x+k][cell.y+l].status != FLAGGED && matrix[cell.x+k][cell.y+l].status != VISIBLE) {
                                 matrix[cell.x+k][cell.y+l].status = VISIBLE;
-                                nbVisible++;
                                 if(matrix[cell.x+k][cell.y+l].value == 0) {
                                     cell.x = cell.x+k;
                                     cell.y = cell.y+l;
@@ -121,7 +153,6 @@ void EvaluateMove(t_point cell) {
                 break;
             default:
                 matrix[cell.x][cell.y].status = VISIBLE;
-                nbVisible++;
                 break;
         }
     }
@@ -179,9 +210,9 @@ void InitField(int difficulty) {
         }
     }
     
+    PrintField();
     t_point coord = GetCoordinates();
     matrix[coord.x][coord.y].status = VISIBLE;
-    nbVisible++;
     
     /* Calcul du nombre de mines et placement */
     int randRow, randCol;
@@ -256,14 +287,19 @@ void PrintField() {
             for(int j = 0; j < col; j++) {
                 if(matrix[i][j].status == HIDDEN) {
                     if(matrix[i][j].value == MINE) {
-                        printf(" M ");
+                        printf(" # ");
                     }
                     else {
                         printf(" . ");
                     }
                 }
                 else if(matrix[i][j].status == FLAGGED) {
-                    printf(" M ");
+                    if(matrix[i][j].value == MINE) {
+                        printf(" + ");
+                    }
+                    else {
+                        printf(" - ");
+                    }
                 }
                 else {
                     if(matrix[i][j].value == 0) {
@@ -291,7 +327,7 @@ void PrintField() {
                     printf(" . ");
                 }
                 else if(matrix[i][j].status == FLAGGED) {
-                    printf(" M ");
+                    printf(" ? ");
                 }
                 else {
                     if(matrix[i][j].value == 0) {
@@ -308,6 +344,7 @@ void PrintField() {
         for(int i = 0; i < col; i++) {       
             printf("−−−");
         }
+        printf("\n");
     }
     /* Real values for debugging 
     for(int i = 0; i < row; i++) {
@@ -327,26 +364,3 @@ void FreeMatrix() {
     free(matrix);
 }
 
-/* MAIN PROGRAM */
-int main() {
-    /* Initialisation du champ de mines */
-    InitField(GetDifficultyLevel());
-    PrintField();
-    
-    /* Boucle de jeu (tant que !gameOver) */    
-    while (!gameOver) {
-        printf("\n%2d Flagged\n%2d Mines\n\n", nbFlagged, nbMines);
-        
-        EvaluateMove(GetCoordinates());
-        PrintField();
-        
-        if(nbFlagged == nbMines && nbDiscoveredMines == nbMines) {
-            printf("\nYOU WIN !!! CONGRATULATIONS !\n");
-            gameOver = true;
-        }
-    }
-    
-    FreeMatrix();
-    
-    return 0;
-}
